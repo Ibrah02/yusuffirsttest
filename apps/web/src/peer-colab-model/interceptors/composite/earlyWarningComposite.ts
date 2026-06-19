@@ -1,6 +1,6 @@
 import { Result, TransportSessionBuilder } from '@peercolab/engine'
 import {
-  GetRegionalOutlook,
+  GetRegionalOutlooks,
   GetCountrySignal,
   SearchAtRiskCountries,
 } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
@@ -11,7 +11,7 @@ import type {
   Provenance,
   PathwayContribution,
   CountrySignal,
-  GetRegionalOutlookOutput,
+  RegionalOutlook,
 } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
 import type {
   FewsNetPriceSignal,
@@ -197,12 +197,13 @@ async function loadAll(): Promise<CountrySignal[]> {
   return Promise.all(COUNTRY_TABLE.map((c) => loadCountry(c.code)))
 }
 
-function rollUp(signals: CountrySignal[]): GetRegionalOutlookOutput {
+function rollUp(signals: CountrySignal[]): RegionalOutlook {
   const harm = signals.filter((s) => s.direction === 'TowardHarm')
   const leadTimeMonths = harm.length ? Math.max(...harm.map((s) => s.leadTimeMonths)) : 0
   const monitored = signals.filter((s) => s.provenance.coverage === 'Monitored').length
   const band: 'High' | 'Medium' | 'Low' = monitored > signals.length / 2 ? 'Medium' : 'Low'
   return {
+    region: { code: 'EA', name: 'East Africa' },
     overallDirection: harm.length > signals.length / 2 ? 'TowardHarm' : 'Neutral',
     leadTimeMonths,
     confidence: {
@@ -221,11 +222,11 @@ function rollUp(signals: CountrySignal[]): GetRegionalOutlookOutput {
 export function registerEarlyWarningComposite(builder: TransportSessionBuilder): void {
   registerClimateOp(registerConflictOp(registerPriceOp(builder)))
     .intercept(
-      new GetRegionalOutlook().handle(async () => {
+      new GetRegionalOutlooks().handle(async () => {
         try {
-          return Result.ok(rollUp(await loadAll()))
+          return Result.ok([rollUp(await loadAll())])
         } catch (e) {
-          return Result.internalServerError<GetRegionalOutlookOutput>(
+          return Result.internalServerError<RegionalOutlook[]>(
             'EarlyWarning.RegionalOutlook.CompositeUnavailable',
             `Composite signal failed: ${(e as Error).message}`,
             'The combined signal is unavailable right now.',

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Session } from '../peer-colab-model/Session'
 import { EarlyWarningMonitor } from '@gen/East_Africa_dashbaord/Client/PathItems'
-import type { GetRegionalOutlookOutput, CountrySignal } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
+import type { RegionalOutlook as RegionalOutlookData, CountrySignal } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
 import { directionLabel, directionTone, confidenceLabel, coverageState, upsideUnevidenced } from '../lib/format'
 import { ProvenanceBadge, UpsideGapTag } from '../components/ProvenanceBadge'
 import { FiredSummary } from '../components/PathwayBreakdown'
@@ -9,7 +9,7 @@ import { FiredSummary } from '../components/PathwayBreakdown'
 type Props = { onSelectCountry: (code: string) => void }
 
 export function RegionalOutlook({ onSelectCountry }: Props) {
-  const [outlook, setOutlook] = useState<GetRegionalOutlookOutput | null>(null)
+  const [outlooks, setOutlooks] = useState<RegionalOutlookData[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -17,11 +17,11 @@ export function RegionalOutlook({ onSelectCountry }: Props) {
     let live = true
     setLoading(true)
     Session.getClient()
-      .request(EarlyWarningMonitor.getRegionalOutlook())
+      .request(EarlyWarningMonitor.getRegionalOutlooks())
       .then((result) => {
         if (!live) return
         if (result.success) {
-          setOutlook(result.value)
+          setOutlooks(result.value)
           setError(null)
         } else {
           setError(result.error?.toLongString() ?? 'Failed to load the regional outlook.')
@@ -35,24 +35,46 @@ export function RegionalOutlook({ onSelectCountry }: Props) {
 
   if (loading) return <p className="muted">Loading regional outlook…</p>
   if (error) return <p className="error">{error}</p>
-  if (!outlook) return <p className="muted">No outlook available.</p>
+  if (!outlooks || outlooks.length === 0) return <p className="muted">No outlook available.</p>
 
+  return (
+    <section>
+      <p className="comparison-intro">
+        Each African macro-region read side by side — so you can see whether East Africa's trajectory is
+        regionally specific or part of a continent-wide pattern.
+      </p>
+      <div className="region-comparison">
+        {outlooks.map((outlook) => (
+          <RegionColumn key={outlook.region.code} outlook={outlook} onSelectCountry={onSelectCountry} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function RegionColumn({
+  outlook,
+  onSelectCountry,
+}: {
+  outlook: RegionalOutlookData
+  onSelectCountry: (code: string) => void
+}) {
   const signals = outlook.countrySignals
   const monitored = signals.filter((s) => coverageState(s.provenance.coverage) === 'monitored')
   const partial = signals.filter((s) => coverageState(s.provenance.coverage) !== 'monitored')
 
   return (
-    <section>
+    <div className="region-column">
       <div className={`headline tone-${directionTone(outlook.overallDirection)}`}>
-        <span className="headline-eyebrow">Region as a whole</span>
+        <span className="headline-eyebrow">{outlook.region.name}</span>
         <h2>{directionLabel(outlook.overallDirection)}</h2>
         <p className="headline-meta">
           {outlook.leadTimeMonths} months of lead time · {confidenceLabel(outlook.confidence.band)}
         </p>
         {outlook.confidence.note && <p className="headline-note">{outlook.confidence.note}</p>}
         <p className="coverage-summary">
-          Fully monitored: {monitored.length} of {signals.length} countries. The rest have limited or no usable data —
-          shown separately below.
+          Fully monitored: {monitored.length} of {signals.length} countries. The rest have limited or no usable
+          data — shown separately below.
         </p>
       </div>
 
@@ -77,7 +99,7 @@ export function RegionalOutlook({ onSelectCountry }: Props) {
           </ul>
         </>
       )}
-    </section>
+    </div>
   )
 }
 

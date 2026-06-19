@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Session } from '../peer-colab-model/Session'
 import { EarlyWarningMonitor } from '@gen/East_Africa_dashbaord/Client/PathItems'
-import type { CountrySignal, TriageReview } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
+import type { CountrySignal, TriageReview, Region } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
 import { directionLabel, directionTone, formatAsOf, isStale } from '../lib/format'
 import { ProvenanceBadge } from '../components/ProvenanceBadge'
 import { FiredSummary, PathwayBreakdown } from '../components/PathwayBreakdown'
@@ -30,8 +30,14 @@ function score(s: CountrySignal): number {
 
 export function AtRiskWatchlist({ onSelectCountry }: Props) {
   const [filter, setFilter] = useState<string>('active')
+  const [regionFilter, setRegionFilter] = useState<string>('all')
   const [candidates, setCandidates] = useState<CountrySignal[] | null>(null)
   const [reviews, setReviews] = useState<Record<string, Triage>>({})
+  // Country code → its macro-region, learned from the per-region outlooks. The
+  // watchlist op returns flat CountrySignals (no region), so we map them back to
+  // the bloc each country sits in for the tag and the region filter.
+  const [regionByCode, setRegionByCode] = useState<Record<string, Region>>({})
+  const [regions, setRegions] = useState<Region[]>([])
   const [expanded, setExpanded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -43,7 +49,8 @@ export function AtRiskWatchlist({ onSelectCountry }: Props) {
     Promise.all([
       client.request(EarlyWarningMonitor.searchAtRiskCountries({})),
       client.request(EarlyWarningMonitor.getTriageReviews()),
-    ]).then(([candResult, reviewResult]) => {
+      client.request(EarlyWarningMonitor.getRegionalOutlooks()),
+    ]).then(([candResult, reviewResult, outlookResult]) => {
       if (!live) return
       if (candResult.success) {
         setCandidates(candResult.value)
@@ -53,6 +60,14 @@ export function AtRiskWatchlist({ onSelectCountry }: Props) {
       }
       if (reviewResult.success) {
         setReviews(Object.fromEntries(reviewResult.value.map((r: TriageReview) => [r.countryCode, r.state as Triage])))
+      }
+      if (outlookResult.success) {
+        const byCode: Record<string, Region> = {}
+        for (const o of outlookResult.value) {
+          for (const sig of o.countrySignals) byCode[sig.country.code] = o.region
+        }
+        setRegionByCode(byCode)
+        setRegions(outlookResult.value.map((o) => o.region))
       }
       setLoading(false)
     })
@@ -74,6 +89,7 @@ export function AtRiskWatchlist({ onSelectCountry }: Props) {
 
   const ranked = (candidates ?? []).slice().sort((a, b) => score(b) - score(a))
   const visible = ranked.filter((s) => {
+    if (regionFilter !== 'all' && regionByCode[s.country.code]?.code !== regionFilter) return false
     const t = triageOf(s.country.code)
     if (filter === 'active') return t !== 'Dismissed'
     if (filter === 'new') return t === 'New'
@@ -99,6 +115,21 @@ export function AtRiskWatchlist({ onSelectCountry }: Props) {
             </option>
           ))}
         </select>
+        {regions.length > 1 && (
+          <select
+            id="region-filter"
+            aria-label="Region"
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+          >
+            <option value="all">All regions</option>
+            {regions.map((r) => (
+              <option key={r.code} value={r.code}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        )}
         {candidates && (
           <span className="muted queue-count">
             {visible.length} shown · {ranked.filter((s) => triageOf(s.country.code) === 'New').length} awaiting review
@@ -125,6 +156,7 @@ export function AtRiskWatchlist({ onSelectCountry }: Props) {
               key={s.id}
               rank={i + 1}
               signal={s}
+              region={regionByCode[s.country.code]}
               triage={triageOf(s.country.code)}
               expanded={expanded === s.country.code}
               onToggle={() => setExpanded(expanded === s.country.code ? null : s.country.code)}
@@ -141,6 +173,7 @@ export function AtRiskWatchlist({ onSelectCountry }: Props) {
 function WatchRow({
   rank,
   signal: s,
+  region,
   triage,
   expanded,
   onToggle,
@@ -149,6 +182,7 @@ function WatchRow({
 }: {
   rank: number
   signal: CountrySignal
+  region?: Region
   triage: Triage
   expanded: boolean
   onToggle: () => void
@@ -163,7 +197,10 @@ function WatchRow({
       <button className="watch-head" onClick={onToggle} aria-expanded={expanded}>
         <span className="watch-rank">#{rank}</span>
         <span className="watch-main">
-          <span className="watch-country">{s.country.name}</span>
+          <span className="watch-country">
+            {s.country.name}
+            {region && <span className="watch-region">{region.name}</span>}
+          </span>
           <span className="watch-direction">{directionLabel(s.direction)}</span>
           <span className="watch-lead">flagged — {s.leadTimeMonths}mo lead · {s.confidence.band} confidence</span>
         </span>

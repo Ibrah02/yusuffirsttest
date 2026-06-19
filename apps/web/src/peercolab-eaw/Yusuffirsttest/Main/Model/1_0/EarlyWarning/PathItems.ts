@@ -66,15 +66,15 @@ this scope fits into the broader system before making changes.
 import { RequestOperation } from '@peercolab/engine'
 
 /**
- * Short form: Yusuffirsttest.Main.Model.1_0.EarlyWarning.GetRegionalOutlook (id: 51aa62d3-7060-4e4a-8057-0274b2c8fc42)
+ * Short form: Yusuffirsttest.Main.Model.1_0.EarlyWarning.GetRegionalOutlooks (id: 51aa62d3-7060-4e4a-8057-0274b2c8fc42)
  * Read documentation: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetDocumentationContext --input '{"entityType":"operation","entityId":"51aa62d3-7060-4e4a-8057-0274b2c8fc42"}'
  * Fetch mutation context: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetMutationDocContext --input '{"entityType":"operation","entityId":"51aa62d3-7060-4e4a-8057-0274b2c8fc42"}'
- * The headline two-way read for the whole monitored region: overall direction, the lead time it buys, overall confidence, and the per-country signals beneath it. Powers the landing screen.
+ * The headline two-way read for EACH monitored African macro-region (East Africa, North Africa, ...). Returns one outlook per region - region identity, overall direction, the lead time it buys, overall confidence, and the per-country signals beneath it. Powers the side-by-side regional comparison on the landing screen.
  */
-export class GetRegionalOutlook extends RequestOperation<object,GetRegionalOutlookOutput> {
+export class GetRegionalOutlooks extends RequestOperation<object,RegionalOutlook[]> {
   constructor() {
     super(
-      "Yusuffirsttest.Main.Model.1_0.EarlyWarning.GetRegionalOutlook",
+      "Yusuffirsttest.Main.Model.1_0.EarlyWarning.GetRegionalOutlooks",
       "GET",
       [],
       {
@@ -186,10 +186,15 @@ export class SetTriageReview extends RequestOperation<SetTriageReviewInput,Triag
 }
 
 /**
- * Short form: Yusuffirsttest.Main.Model.1_0.EarlyWarning.GetRegionalOutlookOutput (id: 484627cd-f32f-4e9f-bdba-3e354eabad95)
- * Fetch mutation context: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetMutationDocContext --input '{"entityType":"valueType","entityId":"484627cd-f32f-4e9f-bdba-3e354eabad95"}'
+ * Short form: Yusuffirsttest.Main.Model.1_0.EarlyWarning.RegionalOutlook (id: 2dccec5c-f56b-4b4c-b7ba-77cf4ea26552)
+ * Fetch mutation context: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetMutationDocContext --input '{"entityType":"valueType","entityId":"2dccec5c-f56b-4b4c-b7ba-77cf4ea26552"}'
+ * One monitored macro-region early-warning outlook: which region it is, which way it is tipping as a whole, the lead time the signal buys, overall confidence, and the per-country signals making it up. The array of these (one per region) is the side-by-side comparison the landing screen renders.
  */
-export type GetRegionalOutlookOutput = {
+export type RegionalOutlook = {
+  /**
+   * Which monitored macro-region this outlook is for (East Africa, North Africa, ...).
+   */
+  region: Region
   /**
    * Which way the region as a whole is tipping.
    * Valid values: TowardHarm, Neutral, TowardDividend
@@ -207,6 +212,22 @@ export type GetRegionalOutlookOutput = {
    * Per-country signals making up the region.
    */
   countrySignals: CountrySignal[]
+}
+
+/**
+ * Short form: Yusuffirsttest.Main.Model.1_0.EarlyWarning.Region (id: 2e1dcbaa-ee01-42d6-ab54-cc68223a4aac)
+ * Fetch mutation context: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetMutationDocContext --input '{"entityType":"valueType","entityId":"2e1dcbaa-ee01-42d6-ab54-cc68223a4aac"}'
+ * A monitored macro-region of Africa (e.g. East Africa, North Africa) - the unit the outlook compares side by side.
+ */
+export type Region = {
+  /**
+   * Short region code, e.g. EA, NA.
+   */
+  code: string
+  /**
+   * Region display name, e.g. East Africa.
+   */
+  name: string
 }
 
 /**

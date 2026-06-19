@@ -1,6 +1,6 @@
 import { Result, TransportSessionBuilder } from '@peercolab/engine'
 import {
-  GetRegionalOutlook,
+  GetRegionalOutlooks,
   GetCountrySignal,
   SearchAtRiskCountries,
 } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
@@ -10,7 +10,7 @@ import type {
   Confidence,
   Provenance,
   CountrySignal,
-  GetRegionalOutlookOutput,
+  RegionalOutlook,
 } from '@gen/Main/Model/1_0/EarlyWarning/PathItems'
 import { GetWorldBankIndicator } from '@gen/Main/Model/1_0/SourceData/PathItems'
 import type { WorldBankIndicatorReading } from '@gen/Main/Model/1_0/SourceData/PathItems'
@@ -257,7 +257,7 @@ async function loadSignals(iso3s: string[]): Promise<CountrySignal[]> {
   return signals
 }
 
-function rollUpRegion(signals: CountrySignal[]): GetRegionalOutlookOutput {
+function rollUpRegion(signals: CountrySignal[]): RegionalOutlook {
   const tally = (d: string) => signals.filter((s) => s.direction === d).length
   const harm = tally('TowardHarm')
   const dividend = tally('TowardDividend')
@@ -265,6 +265,7 @@ function rollUpRegion(signals: CountrySignal[]): GetRegionalOutlookOutput {
   const monitored = signals.filter((s) => s.provenance.coverage === 'Monitored').length
   const band: 'High' | 'Medium' | 'Low' = monitored > signals.length / 2 ? 'Medium' : 'Low'
   return {
+    region: { code: 'EA', name: 'East Africa' },
     overallDirection,
     leadTimeMonths: 0,
     confidence: {
@@ -301,12 +302,12 @@ export function registerEarlyWarningRealApi(builder: TransportSessionBuilder): v
       }),
     )
     .intercept(
-      new GetRegionalOutlook().handle(async () => {
+      new GetRegionalOutlooks().handle(async () => {
         try {
           const signals = await loadSignals(ALL_ISO3)
-          return Result.ok(rollUpRegion(signals))
+          return Result.ok([rollUpRegion(signals)])
         } catch (e) {
-          return Result.internalServerError<GetRegionalOutlookOutput>(
+          return Result.internalServerError<RegionalOutlook[]>(
             'EarlyWarning.RegionalOutlook.SourceUnavailable',
             `World Bank fetch failed: ${(e as Error).message}`,
             'Live data source is unavailable right now.',
