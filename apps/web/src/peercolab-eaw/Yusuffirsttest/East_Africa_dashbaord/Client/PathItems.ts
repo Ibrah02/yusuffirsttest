@@ -71,7 +71,7 @@ import type { GetWorldBankIndicatorInput, WorldBankIndicatorReading, GetFewsNetP
  * Short form: Yusuffirsttest.East_Africa_dashbaord.Client.EarlyWarningMonitor (id: 9050a17d-caeb-457f-9917-1a01e74dc279)
  * Read documentation: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetDocumentationContext --input '{"entityType":"usagePackage","entityId":"9050a17d-caeb-457f-9917-1a01e74dc279"}'
  * Fetch mutation context: peercolab cli --system 828dc457-f0ad-4f56-b61a-2a1268106191 run CLI.Systems.GetMutationDocContext --input '{"entityType":"usagePackage","entityId":"9050a17d-caeb-457f-9917-1a01e74dc279"}'
- * The early-warning read operations the NGO monitor frontend dispatches: GetRegionalOutlook, GetCountrySignal, SearchAtRiskCountries. Outbound - the client calls these through the engine; served by interceptor mocks during the UX-first phase, by BuilderServer later.
+ * The early-warning read operations the NGO monitor frontend dispatches: GetRegionalOutlooks (one outlook per African macro-region, for the side-by-side comparison), GetCountrySignal, SearchAtRiskCountries. Outbound - the client calls these through the engine; served by interceptor mocks during the UX-first phase, by BuilderServer later.
  */
 export class EarlyWarningMonitor {
   public static OperationInstructionsInternal = class {
